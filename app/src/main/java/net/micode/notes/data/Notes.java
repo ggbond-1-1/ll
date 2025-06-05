@@ -17,13 +17,20 @@
 package net.micode.notes.data;
 
 import android.net.Uri;
+import android.text.Spanned;
+import android.text.TextUtils;
+import android.text.Html;
+import android.text.SpannableString;
+
 public class Notes {
     public static final String AUTHORITY = "micode_notes";
     public static final String TAG = "Notes";
     public static final int TYPE_NOTE     = 0;
     public static final int TYPE_FOLDER   = 1;
     public static final int TYPE_SYSTEM   = 2;
-
+    private long mId;
+    private String mTitle;
+    private String mContent;
     /**
      * Following IDs are system folders' identifiers
      * {@link Notes#ID_ROOT_FOLDER } is default folder
@@ -62,6 +69,7 @@ public class Notes {
     public static final Uri CONTENT_DATA_URI = Uri.parse("content://" + AUTHORITY + "/data");
 
     public interface NoteColumns {
+        public static final String FONT_COLOR = "font_color";
         /**
          * The unique ID for a row
          * <P> Type: INTEGER (long) </P>
@@ -256,7 +264,27 @@ public class Notes {
 
         public static final Uri CONTENT_URI = Uri.parse("content://" + AUTHORITY + "/text_note");
     }
+    // 新增：获取带格式的内容（用于显示）
+    public Spanned getFormattedContent() {
+        if (TextUtils.isEmpty(mContent)) {
+            return new SpannableString("");
+        }
+        return Html.fromHtml(mContent);
+    }
 
+    // 新增：设置带格式的内容（用于编辑后保存）
+    public void setFormattedContent(Spanned content) {
+        mContent = Html.toHtml(content);
+    }
+
+    // 原有方法保持不变，继续使用mContent存储文本
+    public String getContent() {
+        return mContent;
+    }
+
+    public void setContent(String content) {
+        this.mContent = content;
+    }
     public static final class CallNote implements DataColumns {
         /**
          * Call date for this record

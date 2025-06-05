@@ -119,7 +119,7 @@
     <string name="button_delete">Delete</string>
     <string name="call_record_folder_name">Call notes</string>
     <string name="hint_foler_name">Input name</string>
-
+    <string name="underline">下划线</string>
     <string name="search_label">Searching Notes</string>
     <string name="search_hint">Search notes</string>
     <string name="search_setting_description">Text in your notes</string>

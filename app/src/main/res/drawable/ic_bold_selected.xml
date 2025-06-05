@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- app/src/main/res/drawable/ic_bold_selected.xml -->
+<!-- app/src/main/res/drawable/ic_bold_selected.xml -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#3366FF"
+        android:pathData="M4,18h4v-3H5v-2h3V9H4V7h5v10H4zM16,7h-3v10h3v-3h2v3h3V7z"/>
+</vector>

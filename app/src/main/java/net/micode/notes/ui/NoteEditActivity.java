@@ -16,6 +16,23 @@
 
 package net.micode.notes.ui;
 
+import android.text.style.UnderlineSpan;
+import android.widget.ImageButton;
+import android.text.Editable;
+import android.content.Context;
+import android.content.Intent;
+import android.os.Bundle;
+import android.text.Spannable;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.StyleSpan;
+import android.view.ActionMode;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.EditText;
+import android.widget.Toast;
 import android.app.Activity;
 import android.graphics.Color;
 import android.app.AlarmManager;
@@ -34,6 +51,8 @@ import android.preference.PreferenceManager;
 import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.TextUtils;
+import android.graphics.Typeface;
+import android.text.Spanned;
 import android.text.format.DateUtils;
 import android.text.style.BackgroundColorSpan;
 import android.util.Log;
@@ -71,6 +90,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import androidx.core.content.ContextCompat;
 
 
 public class NoteEditActivity extends Activity implements OnClickListener,
@@ -150,11 +170,13 @@ public class NoteEditActivity extends Activity implements OnClickListener,
     private String mUserQuery;
     private Pattern mPattern;
     private View mFontColorSelector;
-
+    private boolean isBoldActive = false;
+    private ImageButton mUnderlineButton;
+    private boolean isUnderlineActive = false;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        this.setContentView(R.layout.note_edit);
+        setContentView(R.layout.note_edit);
 
         // 初始化字体颜色选择器
         mFontColorSelector = findViewById(R.id.font_color_selector);
@@ -164,26 +186,68 @@ public class NoteEditActivity extends Activity implements OnClickListener,
             return;
         }
         initResources();
+        mUnderlineButton = findViewById(R.id.btn_underline);
+        mUnderlineButton.setOnClickListener(this);
     }
 
+// 添加导入
+
     public void onFontColorSelected(View view) {
-        int color;
+        if (mWorkingNote == null) {
+            Log.e(TAG, "WorkingNote is null, cannot set font color");
+            return;
+        }
+
+        int color = ContextCompat.getColor(this, android.R.color.black); // 默认黑色
+
+        // 根据点击的按钮获取对应的颜色
         switch (view.getId()) {
             case R.id.btn_font_color_red:
-                color = getResources().getColor(R.color.font_color_red);
+                color = ContextCompat.getColor(this, R.color.font_color_red);
+                Log.d(TAG, "Selected color: RED (0x" + Integer.toHexString(color) + ")");
                 break;
             case R.id.btn_font_color_green:
-                color = getResources().getColor(R.color.font_color_green);
+                color = ContextCompat.getColor(this, R.color.font_color_green);
+                Log.d(TAG, "Selected color: GREEN (0x" + Integer.toHexString(color) + ")");
                 break;
             case R.id.btn_font_color_blue:
-                color = getResources().getColor(R.color.font_color_blue);
+                color = ContextCompat.getColor(this, R.color.font_color_blue);
+                Log.d(TAG, "Selected color: BLUE (0x" + Integer.toHexString(color) + ")");
                 break;
             default:
-                color = Color.BLACK;
+                Log.d(TAG, "Selected default color: BLACK (0x" + Integer.toHexString(color) + ")");
+                break;
         }
-        mNoteEditor.setTextColor(color);
+
+        // 根据当前便签模式设置字体颜色
+        if (mWorkingNote.getCheckListMode() == TextNote.MODE_CHECK_LIST) {
+            // 列表模式：遍历所有列表项设置颜色
+            if (mEditTextList != null && mEditTextList.getChildCount() > 0) {
+                for (int i = 0; i < mEditTextList.getChildCount(); i++) {
+                    View listItem = mEditTextList.getChildAt(i);
+                    NoteEditText editText = listItem.findViewById(R.id.et_edit_text);
+                    if (editText != null) {
+                        editText.setTextColor(color);
+                        Log.d(TAG, "Set color for list item " + i + ": 0x" + Integer.toHexString(color));
+                    }
+                }
+            } else {
+                Log.w(TAG, "List mode active but mEditTextList is null or empty");
+            }
+        } else {
+            // 普通文本模式：直接设置主编辑器颜色
+            if (mNoteEditor != null) {
+                mNoteEditor.setTextColor(color);
+                Log.d(TAG, "Set color for main editor: 0x" + Integer.toHexString(color));
+            } else {
+                Log.e(TAG, "mNoteEditor is null, cannot set color");
+            }
+        }
+
+        // 隐藏颜色选择器
         mFontColorSelector.setVisibility(View.GONE);
     }
+
 
 
 
@@ -453,6 +517,9 @@ public class NoteEditActivity extends Activity implements OnClickListener,
 
     public void onClick(View v) {
         int id = v.getId();
+        if (v.getId() == R.id.btn_underline) {
+            toggleUnderline();
+        }
         if (id == R.id.btn_set_bg_color) {
             mNoteBgColorSelector.setVisibility(View.VISIBLE);
             findViewById(sBgSelectorSelectionMap.get(mWorkingNote.getBgColorId())).setVisibility(
@@ -477,6 +544,54 @@ public class NoteEditActivity extends Activity implements OnClickListener,
             mFontSizeSelector.setVisibility(View.GONE);
         }
     }
+    private void toggleUnderline() {
+        Editable editable = mNoteEditor.getText();
+        int start = mNoteEditor.getSelectionStart();
+        int end = mNoteEditor.getSelectionEnd();
+
+        // 获取当前光标位置或选中区域的下划线样式
+        UnderlineSpan[] spans = editable.getSpans(start, end, UnderlineSpan.class);
+
+        if (spans.length > 0) {
+            // 移除已有的下划线样式
+            for (UnderlineSpan span : spans) {
+                editable.removeSpan(span);
+            }
+            isUnderlineActive = false;
+        } else {
+            // 添加下划线样式
+            if (start == end) {
+                // 没有选中文本，为后续输入设置样式
+                editable.setSpan(
+                        new UnderlineSpan(),
+                        start,
+                        end,
+                        Spannable.SPAN_MARK_MARK
+                );
+            } else {
+                // 为选中的文本设置样式
+                editable.setSpan(
+                        new UnderlineSpan(),
+                        start,
+                        end,
+                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                );
+            }
+            isUnderlineActive = true;
+        }
+
+        // 更新按钮状态
+        updateUnderlineButtonState();
+    }
+
+    private void updateUnderlineButtonState() {
+        // 高亮显示按钮（可选）
+        mUnderlineButton.setColorFilter(
+                isUnderlineActive ?
+                        Color.BLUE :  // 激活状态为蓝色
+                        null         // 非激活状态为默认颜色
+        );
+    }
 
     @Override
     public void onBackPressed() {
@@ -487,6 +602,64 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         saveNote();
         super.onBackPressed();
     }
+    private void handleNormalModeBold() {
+        Editable text = mNoteEditor.getEditableText();
+        int start = mNoteEditor.getSelectionStart();
+        int end = mNoteEditor.getSelectionEnd();
+
+        if (start == end) {
+            // 无选中：在光标位置切换加粗标记
+            toggleBoldAtCursor(text, start);
+        } else {
+            // 有选中：应用/移除加粗样式
+            applyBoldToSelection(text, start, end);
+        }
+        mNoteEditor.setSelection(end); // 保持选中文本位置
+    }
+    private void handleListModeBold() {
+        View focusedView = getCurrentFocus();
+        if (focusedView instanceof NoteEditText) {
+            NoteEditText editText = (NoteEditText) focusedView;
+            Editable text = editText.getText();
+            int start = editText.getSelectionStart();
+            int end = editText.getSelectionEnd();
+
+            if (start == end) {
+                toggleBoldAtCursor(text, start);
+            } else {
+                applyBoldToSelection(text, start, end);
+            }
+            editText.setSelection(end);
+        }
+    }
+
+    // 应用加粗到选中文本
+    private void applyBoldToSelection(Editable text, int start, int end) {
+        // 移除已有的加粗样式
+        StyleSpan[] spans = text.getSpans(start, end, StyleSpan.class);
+        for (StyleSpan span : spans) {
+            text.removeSpan(span);
+        }
+        // 添加新的加粗样式
+        text.setSpan(new StyleSpan(Typeface.BOLD), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        isBoldActive = true;
+    }
+
+    // 切换光标位置的加粗状态
+    private void toggleBoldAtCursor(Editable text, int cursor) {
+        StyleSpan[] spans = text.getSpans(cursor, cursor, StyleSpan.class);
+        if (spans.length > 0 && spans[0].getStyle() == Typeface.BOLD) {
+            text.removeSpan(spans[0]);
+            isBoldActive = false;
+        } else {
+            text.setSpan(new StyleSpan(Typeface.BOLD), cursor, cursor, Spannable.SPAN_MARK_MARK);
+            isBoldActive = true;
+        }
+    }
+
+    // 更新加粗按钮状态
+
+
 
     private boolean clearSettingState() {
         if (mNoteBgColorSelector.getVisibility() == View.VISIBLE) {
@@ -498,6 +671,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         }
         return false;
     }
+
 
     public void onBackgroundColorChanged() {
         findViewById(sBgSelectorSelectionMap.get(mWorkingNote.getBgColorId())).setVisibility(

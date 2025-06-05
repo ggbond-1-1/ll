@@ -20,4 +20,7 @@
     <color name="font_color_red">#FF0000</color>
     <color name="font_color_green">#00FF00</color>
     <color name="font_color_blue">#0000FF</color>
+
+    <!-- 新增：工具栏背景颜色 -->
+    <color name="toolbar_background">#F5F5F5</color> <!-- 浅灰色，可根据设计需求调整 -->
 </resources>

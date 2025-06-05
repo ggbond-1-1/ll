@@ -62,6 +62,8 @@ public class WorkingNote {
 
     private NoteSettingChangedListener mNoteSettingStatusListener;
 
+    private int mFontColor;
+
     public static final String[] DATA_PROJECTION = new String[] {
             DataColumns.ID,
             DataColumns.CONTENT,
@@ -78,7 +80,8 @@ public class WorkingNote {
             NoteColumns.BG_COLOR_ID,
             NoteColumns.WIDGET_ID,
             NoteColumns.WIDGET_TYPE,
-            NoteColumns.MODIFIED_DATE
+            NoteColumns.MODIFIED_DATE,
+            NoteColumns.FONT_COLOR // 新增字体颜色列
     };
 
     private static final int DATA_ID_COLUMN = 0;
@@ -101,6 +104,8 @@ public class WorkingNote {
 
     private static final int NOTE_MODIFIED_DATE_COLUMN = 5;
 
+    private static final int NOTE_FONT_COLOR_COLUMN = 6;
+
     // New note construct
     private WorkingNote(Context context, long folderId) {
         mContext = context;
@@ -112,6 +117,8 @@ public class WorkingNote {
         mIsDeleted = false;
         mMode = 0;
         mWidgetType = Notes.TYPE_WIDGET_INVALIDE;
+        // 初始化字体颜色为默认值
+        mFontColor = 0xFF000000; // 默认黑色
     }
 
     // Existing note construct
@@ -126,8 +133,9 @@ public class WorkingNote {
 
     private void loadNote() {
         Cursor cursor = mContext.getContentResolver().query(
-                ContentUris.withAppendedId(Notes.CONTENT_NOTE_URI, mNoteId), NOTE_PROJECTION, null,
-                null, null);
+                ContentUris.withAppendedId(Notes.CONTENT_NOTE_URI, mNoteId),
+                NOTE_PROJECTION,
+                null, null, null);
 
         if (cursor != null) {
             if (cursor.moveToFirst()) {
@@ -137,6 +145,8 @@ public class WorkingNote {
                 mWidgetType = cursor.getInt(NOTE_WIDGET_TYPE_COLUMN);
                 mAlertDate = cursor.getLong(NOTE_ALERTED_DATE_COLUMN);
                 mModifiedDate = cursor.getLong(NOTE_MODIFIED_DATE_COLUMN);
+                // 加载字体颜色
+                mFontColor = cursor.getInt(NOTE_FONT_COLOR_COLUMN);
             }
             cursor.close();
         } else {
@@ -149,7 +159,7 @@ public class WorkingNote {
     private void loadNoteData() {
         Cursor cursor = mContext.getContentResolver().query(Notes.CONTENT_DATA_URI, DATA_PROJECTION,
                 DataColumns.NOTE_ID + "=?", new String[] {
-                    String.valueOf(mNoteId)
+                        String.valueOf(mNoteId)
                 }, null);
 
         if (cursor != null) {
@@ -175,7 +185,7 @@ public class WorkingNote {
     }
 
     public static WorkingNote createEmptyNote(Context context, long folderId, int widgetId,
-            int widgetType, int defaultBgColorId) {
+                                              int widgetType, int defaultBgColorId) {
         WorkingNote note = new WorkingNote(context, folderId);
         note.setBgColorId(defaultBgColorId);
         note.setWidgetId(widgetId);
@@ -243,7 +253,7 @@ public class WorkingNote {
         mIsDeleted = mark;
         if (mWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID
                 && mWidgetType != Notes.TYPE_WIDGET_INVALIDE && mNoteSettingStatusListener != null) {
-                mNoteSettingStatusListener.onWidgetChanged();
+            mNoteSettingStatusListener.onWidgetChanged();
         }
     }
 
@@ -347,6 +357,7 @@ public class WorkingNote {
          * Called when the background color of current note has just changed
          */
         void onBackgroundColorChanged();
+        void onFontColorChanged();
 
         /**
          * Called when user set clock
@@ -364,5 +375,20 @@ public class WorkingNote {
          * @param newMode is new mode
          */
         void onCheckListModeChanged(int oldMode, int newMode);
+    }
+
+    public int getFontColor() {
+        return mFontColor;
+    }
+
+    public void setFontColor(int color) {
+        if (color != mFontColor) {
+            mFontColor = color;
+            if (mNoteSettingStatusListener != null) {
+                mNoteSettingStatusListener.onFontColorChanged();
+            }
+            mNote.setNoteValue(NoteColumns.FONT_COLOR, String.valueOf(color));
+            // 确保在saveNote()方法中保存所有更改
+        }
     }
 }
